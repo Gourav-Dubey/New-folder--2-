@@ -527,7 +527,7 @@ export default function App() {
     const formData = new FormData()
     formData.append("file", file)
     try {
-      await axios.post("http://localhost:8000/upload", formData)
+      await axios.post("https://rag-project-sx7h.onrender.com/upload", formData)
       setPdfUploaded(true)
       setPdfName(file.name)
       setMessages([{ role: "ai", text: `**${file.name}** successfully uploaded! Ask Anything 🚀` }])
@@ -546,7 +546,7 @@ export default function App() {
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setLoading(true)
     try {
-      const res = await axios.post("http://localhost:8000/ask", { question: input })
+      const res = await axios.post("https://rag-project-sx7h.onrender.com/ask", { question: input })
       setMessages(prev => [...prev, { role: "ai", text: res.data.answer }])
     } catch {
       setMessages(prev => [...prev, { role: "ai", text: "Error aaya! Dobara try karo." }])
