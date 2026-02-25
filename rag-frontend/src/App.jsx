@@ -505,6 +505,12 @@ const STYLES = `
 `
 
 export default function App() {
+
+  const API_URL =
+  window.location.hostname.includes("localhost")
+    ? "http://localhost:8000"
+    : "https://your-render-url.onrender.com";
+
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState("")
   const [pdfUploaded, setPdfUploaded] = useState(false)
@@ -527,7 +533,7 @@ export default function App() {
     const formData = new FormData()
     formData.append("file", file)
     try {
-      await axios.post("https://rag-project-sx7h.onrender.com/upload", formData)
+      await axios.post(`${API_URL}/upload`, formData)
       setPdfUploaded(true)
       setPdfName(file.name)
       setMessages([{ role: "ai", text: `**${file.name}** successfully uploaded! Ask Anything 🚀` }])
@@ -546,7 +552,7 @@ export default function App() {
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setLoading(true)
     try {
-      const res = await axios.post("https://rag-project-sx7h.onrender.com/ask", { question: input })
+      const res = await axios.post(`${API_URL}/ask`, { question: input })
       setMessages(prev => [...prev, { role: "ai", text: res.data.answer }])
     } catch {
       setMessages(prev => [...prev, { role: "ai", text: "Error aaya! Dobara try karo." }])
