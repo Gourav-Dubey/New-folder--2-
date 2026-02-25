@@ -509,7 +509,7 @@ export default function App() {
   const API_URL =
   window.location.hostname.includes("localhost")
     ? "http://localhost:8000"
-    : "https://your-render-url.onrender.com";
+    : "https://rag-project-sx7h.onrender.com";
 
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState("")
