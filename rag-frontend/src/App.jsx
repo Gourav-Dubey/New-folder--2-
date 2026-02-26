@@ -1,515 +1,10 @@
 import { useState, useRef, useEffect } from "react"
 import axios from "axios"
 
-const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #050507;
-    --surface: #0d0d12;
-    --surface2: #12121a;
-    --border: rgba(255,255,255,0.06);
-    --accent: #7c6aff;
-    --accent2: #ff6ab0;
-    --accent3: #6affd4;
-    --text: #e8e8f0;
-    --muted: #555566;
-    --user-bg: rgba(124,106,255,0.12);
-    --ai-bg: rgba(255,255,255,0.03);
-  }
-
-  html, body, #root { height: 100%; background: var(--bg); font-family: 'Syne', sans-serif; }
-
-  .app {
-    display: flex;
-    height: 100vh;
-    background: var(--bg);
-    color: var(--text);
-    overflow: hidden;
-  }
-
-  /* Noise overlay */
-  .app::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.4;
-  }
-
-  /* SIDEBAR */
-  .sidebar {
-    width: 260px;
-    flex-shrink: 0;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    padding: 24px 16px;
-    gap: 12px;
-    position: relative;
-    z-index: 10;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .sidebar-logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 4px 8px 20px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 4px;
-  }
-
-  .logo-icon {
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    box-shadow: 0 0 20px rgba(124,106,255,0.4);
-  }
-
-  .logo-text {
-    font-size: 15px;
-    font-weight: 800;
-    letter-spacing: -0.3px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .logo-sub {
-    font-size: 10px;
-    color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-    letter-spacing: 0.5px;
-  }
-
-  .upload-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border: none;
-    color: white;
-    font-family: 'Syne', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 12px 16px;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-    letter-spacing: 0.2px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .upload-btn::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: white;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
-  .upload-btn:hover::after { opacity: 0.08; }
-  .upload-btn:active { transform: scale(0.98); }
-  .upload-btn:disabled {
-    background: var(--surface2);
-    color: var(--muted);
-    cursor: not-allowed;
-  }
-
-  .pdf-chip {
-    background: rgba(106,255,212,0.06);
-    border: 1px solid rgba(106,255,212,0.2);
-    border-radius: 10px;
-    padding: 10px 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--accent3);
-    animation: slideIn 0.3s ease;
-  }
-
-  .pdf-chip-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-  }
-
-  .pdf-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent3);
-    flex-shrink: 0;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(106,255,212,0.4); }
-    50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(106,255,212,0); }
-  }
-
-  .sidebar-hint {
-    margin-top: auto;
-    padding: 12px;
-    background: rgba(255,255,255,0.02);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-  }
-
-  .hint-step {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-    padding: 4px 0;
-  }
-
-  .hint-num {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 9px;
-    color: var(--accent);
-    flex-shrink: 0;
-  }
-
-  /* MAIN AREA */
-  .main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-    z-index: 5;
-  }
-
-  /* Topbar */
-  .topbar {
-    padding: 16px 28px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: rgba(5,5,7,0.8);
-    backdrop-filter: blur(20px);
-  }
-
-  .topbar-indicator {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    transition: all 0.3s;
-  }
-  .status-dot.active {
-    background: var(--accent3);
-    box-shadow: 0 0 8px rgba(106,255,212,0.6);
-  }
-  .status-dot.inactive { background: var(--muted); }
-
-  .topbar-text {
-    color: var(--muted);
-    transition: color 0.3s;
-  }
-  .topbar-text.active { color: var(--accent3); }
-
-  .hamburger {
-    display: none;
-    background: none;
-    border: none;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 20px;
-    padding: 2px;
-    margin-right: 4px;
-  }
-
-  /* Messages */
-  .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 32px 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    scroll-behavior: smooth;
-  }
-
-  .messages::-webkit-scrollbar { width: 4px; }
-  .messages::-webkit-scrollbar-track { background: transparent; }
-  .messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    gap: 20px;
-    text-align: center;
-    animation: fadeUp 0.6s ease;
-  }
-
-  .empty-icon {
-    width: 80px;
-    height: 80px;
-    background: linear-gradient(135deg, rgba(124,106,255,0.1), rgba(255,106,176,0.1));
-    border: 1px solid rgba(124,106,255,0.2);
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 36px;
-  }
-
-  .empty-title {
-    font-size: 22px;
-    font-weight: 800;
-    background: linear-gradient(135deg, var(--text), var(--muted));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .empty-sub {
-    font-size: 13px;
-    color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* Message row */
-  .msg-row {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    animation: fadeUp 0.25s ease;
-  }
-
-  .msg-row.user { flex-direction: row-reverse; }
-
-  .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 800;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .avatar.ai {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    box-shadow: 0 0 16px rgba(124,106,255,0.3);
-    letter-spacing: 0;
-  }
-
-  .avatar.user {
-    background: rgba(124,106,255,0.2);
-    border: 1px solid rgba(124,106,255,0.3);
-    color: var(--accent);
-  }
-
-  .bubble {
-    max-width: 72%;
-    border-radius: 16px;
-    padding: 12px 16px;
-    font-size: 14px;
-    line-height: 1.65;
-  }
-
-  .bubble.user {
-    background: var(--user-bg);
-    border: 1px solid rgba(124,106,255,0.2);
-    border-top-right-radius: 4px;
-    color: var(--text);
-  }
-
-  .bubble.ai {
-    background: var(--ai-bg);
-    border: 1px solid var(--border);
-    border-top-left-radius: 4px;
-    color: #c8c8d8;
-  }
-
-  /* Loading dots */
-  .loading-dots {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-    padding: 4px 0;
-  }
-
-  .dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: bounce 1.2s infinite;
-  }
-
-  .dot:nth-child(2) { animation-delay: 0.15s; background: var(--accent2); }
-  .dot:nth-child(3) { animation-delay: 0.3s; background: var(--accent3); }
-
-  @keyframes bounce {
-    0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
-    30% { transform: translateY(-6px); opacity: 1; }
-  }
-
-  /* Input area */
-  .input-area {
-    padding: 16px 28px 20px;
-    border-top: 1px solid var(--border);
-    background: rgba(5,5,7,0.6);
-    backdrop-filter: blur(20px);
-  }
-
-  .input-box {
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 12px 14px;
-    transition: border-color 0.2s;
-  }
-
-  .input-box:focus-within {
-    border-color: rgba(124,106,255,0.4);
-    box-shadow: 0 0 0 3px rgba(124,106,255,0.06);
-  }
-
-  .input-box textarea {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text);
-    font-family: 'Syne', sans-serif;
-    font-size: 14px;
-    resize: none;
-    line-height: 1.5;
-    max-height: 120px;
-    overflow-y: auto;
-  }
-
-  .input-box textarea::placeholder { color: var(--muted); }
-  .input-box textarea:disabled { cursor: not-allowed; }
-
-  .send-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border: none;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.2s;
-    font-size: 14px;
-  }
-
-  .send-btn:hover { transform: scale(1.05); box-shadow: 0 0 16px rgba(124,106,255,0.5); }
-  .send-btn:active { transform: scale(0.95); }
-  .send-btn:disabled {
-    background: var(--surface2);
-    color: var(--muted);
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-
-  .input-hint {
-    text-align: center;
-    font-size: 11px;
-    color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-    margin-top: 8px;
-  }
-
-  /* Overlay */
-  .overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    z-index: 20;
-    backdrop-filter: blur(4px);
-  }
-
-  /* Animations */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  /* Scrollbar for sidebar */
-  .sidebar::-webkit-scrollbar { display: none; }
-
-  /* Mobile */
-  @media (max-width: 768px) {
-    .sidebar {
-      position: fixed;
-      top: 0; left: 0; bottom: 0;
-      transform: translateX(-100%);
-      z-index: 30;
-    }
-    .sidebar.open { transform: translateX(0); }
-    .overlay.open { display: block; }
-    .hamburger { display: block; }
-    .messages { padding: 20px 16px; }
-    .input-area { padding: 12px 16px 16px; }
-    .topbar { padding: 12px 16px; }
-    .bubble { max-width: 85%; }
-  }
-`
-
 export default function App() {
-
-  const API_URL =
-  window.location.hostname.includes("localhost")
+  const API_URL = window.location.hostname.includes("localhost")
     ? "http://localhost:8000"
-    : "https://rag-project-sx7h.onrender.com";
+    : "https://rag-project-sx7h.onrender.com"
 
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState("")
@@ -518,6 +13,8 @@ export default function App() {
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [mode, setMode] = useState("pdf")
+  const [dark, setDark] = useState(true)
   const fileRef = useRef()
   const bottomRef = useRef()
   const textareaRef = useRef()
@@ -536,7 +33,7 @@ export default function App() {
       await axios.post(`${API_URL}/upload`, formData)
       setPdfUploaded(true)
       setPdfName(file.name)
-      setMessages([{ role: "ai", text: `**${file.name}** successfully uploaded! Ask Anything 🚀` }])
+      setMessages([{ role: "ai", text: `**${file.name}** uploaded! Ask anything 🚀`, mode: "pdf" }])
       setSidebarOpen(false)
     } catch {
       alert("Upload failed!")
@@ -545,185 +42,244 @@ export default function App() {
   }
 
   const sendMessage = async () => {
-    if (!input.trim() || !pdfUploaded || loading) return
-    const userMsg = { role: "user", text: input }
+    if (!input.trim() || loading) return
+    if (mode === "pdf" && !pdfUploaded) return
+    const userMsg = { role: "user", text: input, mode }
     setMessages(prev => [...prev, userMsg])
     setInput("")
-    if (textareaRef.current) textareaRef.current.style.height = 'auto'
+    if (textareaRef.current) textareaRef.current.style.height = "auto"
     setLoading(true)
     try {
-      const res = await axios.post(`${API_URL}/ask`, { question: input })
-      setMessages(prev => [...prev, { role: "ai", text: res.data.answer }])
+      if (mode === "pdf") {
+        const res = await axios.post(`${API_URL}/ask`, { question: input })
+        setMessages(prev => [...prev, { role: "ai", text: res.data.answer, mode: "pdf" }])
+      } else {
+        const res = await axios.post(`${API_URL}/search`, { query: input })
+        setMessages(prev => [...prev, { role: "ai", text: res.data.answer, sources: res.data.sources, mode: "web" }])
+      }
     } catch {
-      setMessages(prev => [...prev, { role: "ai", text: "Error aaya! Dobara try karo." }])
+      setMessages(prev => [...prev, { role: "ai", text: "Error! Try again.", mode }])
     }
     setLoading(false)
   }
 
   const handleTextareaChange = (e) => {
     setInput(e.target.value)
-    e.target.style.height = 'auto'
-    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+    e.target.style.height = "auto"
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"
   }
 
   const formatText = (text) => {
-    const lines = text.split('\n')
-    return lines.map((line, i) => {
-      if (/^\d+\.\s/.test(line)) {
-        return <div key={i} style={{ display:'flex', gap:'8px', margin:'4px 0' }}>
-          <span style={{ color:'var(--accent)', fontWeight:700, flexShrink:0, fontFamily:'JetBrains Mono, monospace', fontSize:'12px' }}>{line.match(/^\d+/)[0]}.</span>
-          <span>{parseBold(line.replace(/^\d+\.\s/, ''))}</span>
+    return text.split("\n").map((line, i) => {
+      if (/^\d+\.\s/.test(line)) return (
+        <div key={i} className="flex gap-2 my-1.5">
+          <span className="text-violet-500 font-bold shrink-0 text-base">{line.match(/^\d+/)[0]}.</span>
+          <span>{line.replace(/^\d+\.\s/, "")}</span>
         </div>
-      }
-      if (/^[-*•]\s/.test(line)) {
-        return <div key={i} style={{ display:'flex', gap:'8px', margin:'4px 0', paddingLeft:'4px' }}>
-          <span style={{ color:'var(--accent2)', flexShrink:0 }}>▸</span>
-          <span>{parseBold(line.replace(/^[-*•]\s/, ''))}</span>
+      )
+      if (/^[-*•]\s/.test(line)) return (
+        <div key={i} className="flex gap-2 my-1.5 pl-1">
+          <span className="text-pink-500 shrink-0 text-base">▸</span>
+          <span>{line.replace(/^[-*•]\s/, "")}</span>
         </div>
-      }
-      if (/^\*\*.*\*\*$/.test(line.trim())) {
-        return <div key={i} style={{ fontWeight:700, color:'var(--text)', marginTop:'12px', marginBottom:'4px', fontSize:'15px' }}>{line.replace(/\*\*/g, '')}</div>
-      }
-      if (line.trim() === '') return <div key={i} style={{ height:'8px' }} />
-      return <div key={i} style={{ margin:'2px 0' }}>{parseBold(line)}</div>
+      )
+      if (line.trim() === "") return <div key={i} className="h-3" />
+      const parts = line.split(/\*\*(.*?)\*\*/g)
+      return (
+        <div key={i} className="my-1">
+          {parts.map((p, j) => j % 2 === 1 ? <strong key={j} className="font-bold">{p}</strong> : p)}
+        </div>
+      )
     })
   }
 
-  const parseBold = (text) => {
-    const parts = text.split(/\*\*(.*?)\*\*/g)
-    return parts.map((p, j) => j % 2 === 1
-      ? <strong key={j} style={{ color:'var(--text)', fontWeight:700 }}>{p}</strong>
-      : p
-    )
+  const isDisabled = mode === "pdf" ? !pdfUploaded : false
+
+  // Theme colors
+  const t = {
+    bg: dark ? "bg-[#1a1a2e]" : "bg-[#f0f0f5]",
+    sidebar: dark ? "bg-[#16213e] border-[#0f3460]/50" : "bg-[#e8e8f0] border-[#c8c8d8]",
+    topbar: dark ? "bg-[#1a1a2e]/90 border-[#0f3460]/50" : "bg-[#e8e8f0]/90 border-[#c8c8d8]",
+    input: dark ? "bg-[#16213e] border-[#0f3460]/60" : "bg-[#dcdce8] border-[#b8b8cc]",
+    inputArea: dark ? "bg-[#1a1a2e]/80 border-[#0f3460]/50" : "bg-[#e8e8f0]/80 border-[#c8c8d8]",
+    userBubble: dark ? "bg-violet-900/40 border-violet-600/30 text-gray-100" : "bg-violet-100 border-violet-300 text-gray-800",
+    aiBubble: dark ? "bg-[#16213e] border-[#0f3460]/60 text-gray-200" : "bg-[#dcdce8] border-[#c0c0d0] text-gray-800",
+    text: dark ? "text-gray-100" : "text-gray-800",
+    muted: dark ? "text-gray-400" : "text-gray-500",
+    hintBg: dark ? "bg-[#16213e]/80 border-[#0f3460]/40" : "bg-[#dcdce8] border-[#c0c0d0]",
+    modeBg: dark ? "bg-[#0f3460]/50 border-[#0f3460]" : "bg-[#dcdce8] border-[#c0c0d0]",
+    modeInactive: dark ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700",
+    avatar: dark ? "bg-[#16213e] border-[#0f3460]" : "bg-[#dcdce8] border-[#c0c0d0]",
+    emptyIcon: dark ? "bg-violet-900/20 border-violet-500/20" : "bg-violet-100 border-violet-300",
   }
 
   return (
-    <>
-      <style>{STYLES}</style>
-      <div className="app">
+    <div className={`flex h-screen w-screen ${t.bg} ${t.text} overflow-hidden transition-colors duration-300`}>
 
-        {/* Overlay */}
-        <div className={`overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />}
 
-        {/* Sidebar */}
-        <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-          <div className="sidebar-logo">
-            <div className="logo-icon">⚡</div>
-            <div>
-              <div className="logo-text">PDF Chat</div>
-              <div className="logo-sub">RAG · AI</div>
-            </div>
+      {/* Sidebar */}
+      <div className={`fixed md:relative z-30 md:z-auto w-72 h-full ${t.sidebar} border-r flex flex-col p-5 gap-4 shrink-0 transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
+
+        {/* Logo */}
+        <div className={`flex items-center gap-3 pb-4 border-b ${dark ? "border-gray-800" : "border-gray-200"}`}>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-xl shadow-lg">⚡</div>
+          <div>
+            <div className="font-black text-base bg-gradient-to-r from-violet-500 to-pink-500 bg-clip-text text-transparent">PDF Chat</div>
+            <div className={`text-xs ${t.muted}`}>RAG · AI · Web Search</div>
           </div>
+          <button onClick={() => setSidebarOpen(false)} className={`md:hidden ml-auto ${t.muted} hover:${t.text} text-xl`}>✕</button>
+        </div>
 
-          <button
-            className="upload-btn"
-            onClick={() => fileRef.current.click()}
-            disabled={uploading}
-          >
-            {uploading
-              ? <><span style={{ animation:'spin 1s linear infinite', display:'inline-block' }}>⏳</span> Uploading...</>
-              : <><span style={{ fontSize:'18px' }}>＋</span> Upload PDF</>
-            }
-          </button>
-          <input ref={fileRef} type="file" accept=".pdf" style={{ display:'none' }} onChange={uploadPDF} />
+        {/* Mode Toggle */}
+        <div className={`flex ${t.modeBg} border rounded-xl p-1 gap-1`}>
+          {[["pdf", "📄 PDF"], ["web", "🔍 Web"]].map(([m, label]) => (
+            <button key={m} onClick={() => setMode(m)}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${mode === m ? "bg-gradient-to-r from-violet-500 to-pink-500 text-white shadow-md" : t.modeInactive}`}>
+              {label}
+            </button>
+          ))}
+        </div>
 
-          {pdfUploaded && (
-            <div className="pdf-chip">
-              <div className="pdf-dot" />
-              <span className="pdf-chip-name">📄 {pdfName}</span>
+        {/* PDF Upload */}
+        {mode === "pdf" && (
+          <>
+            <button onClick={() => fileRef.current.click()} disabled={uploading}
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90 disabled:opacity-40 text-white text-sm font-bold py-3 rounded-xl transition-all shadow-md">
+              {uploading ? "⏳ Uploading..." : "+ Upload PDF"}
+            </button>
+            <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={uploadPDF} />
+            {pdfUploaded && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3 text-sm text-emerald-500 flex items-center gap-2">
+                <span className="text-lg">✅</span>
+                <span className="truncate font-medium">{pdfName}</span>
+              </div>
+            )}
+          </>
+        )}
+
+        {mode === "web" && (
+          <div className={`${t.hintBg} border rounded-xl p-4 text-sm leading-relaxed`}>
+            <div className="text-base mb-1">🔍 Web Search</div>
+            <div className={t.muted}>Real-time internet search powered by Tavily AI</div>
+          </div>
+        )}
+
+        {/* Steps */}
+        <div className={`mt-auto ${t.hintBg} border rounded-xl p-4 space-y-3`}>
+          {(mode === "pdf"
+            ? [["1", "PDF upload karo"], ["2", "Question pucho"], ["3", "AI jawab dega"]]
+            : [["1", "Web mode chuno"], ["2", "Kuch bhi likho"], ["3", "Answer + sources milenge"]]
+          ).map(([n, text]) => (
+            <div key={n} className={`flex items-center gap-3 text-sm ${t.muted}`}>
+              <div className="w-6 h-6 rounded-full border border-violet-500/50 flex items-center justify-center text-xs text-violet-500 font-bold shrink-0">{n}</div>
+              {text}
+            </div>
+          ))}
+        </div>
+
+        {/* Dark Mode Toggle */}
+        <button onClick={() => setDark(!dark)}
+          className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium transition-all ${t.hintBg} ${t.muted} hover:${t.text}`}>
+          {dark ? "☀️ Light Mode" : "🌙 Dark Mode"}
+        </button>
+      </div>
+
+      {/* Main */}
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+
+        {/* Topbar */}
+        <div className={`px-4 md:px-6 py-4 border-b ${t.topbar} flex items-center gap-3 backdrop-blur-xl`}>
+          <button onClick={() => setSidebarOpen(true)} className={`md:hidden ${t.muted} hover:${t.text} text-2xl`}>☰</button>
+          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${mode === "web" ? "bg-pink-500" : pdfUploaded ? "bg-emerald-500" : "bg-gray-500"}`} />
+          <span className={`text-sm font-medium truncate ${mode === "web" ? "text-pink-500" : pdfUploaded ? "text-emerald-500" : t.muted}`}>
+            {mode === "web" ? "Web Search Active" : pdfUploaded ? pdfName : "No PDF loaded"}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <span className={`text-xs font-medium px-3 py-1 rounded-full border ${mode === "web" ? "text-pink-500 border-pink-500/30 bg-pink-500/10" : "text-violet-500 border-violet-500/30 bg-violet-500/10"}`}>
+              {mode === "web" ? "🔍 WEB" : "📄 PDF"}
+            </span>
+            <button onClick={() => setDark(!dark)}
+              className={`w-8 h-8 rounded-lg border ${t.hintBg} flex items-center justify-center text-base transition-all`}>
+              {dark ? "☀️" : "🌙"}
+            </button>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center gap-5">
+              <div className={`w-24 h-24 rounded-3xl ${t.emptyIcon} border flex items-center justify-center text-5xl`}>
+                {mode === "web" ? "🔍" : "⚡"}
+              </div>
+              <div>
+                <div className="font-black text-3xl mb-2">{mode === "web" ? "Web Search" : "PDF ChatBot"}</div>
+                <div className={`text-base ${t.muted}`}>{mode === "web" ? "Search anything on the internet" : "Upload a PDF and ask anything"}</div>
+              </div>
             </div>
           )}
 
-          <div className="sidebar-hint">
-            {[['01', 'PDF upload karo'], ['02', 'Question pucho'], ['03', 'AI jawab dega']].map(([n, t]) => (
-              <div className="hint-step" key={n}>
-                <div className="hint-num">{n}</div>
-                {t}
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex gap-3 items-start ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+              <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-sm font-black ${msg.role === "user" ? `${t.avatar} border text-violet-500` : "bg-gradient-to-br from-violet-500 to-pink-500 text-white shadow-lg"}`}>
+                {msg.role === "user" ? "U" : "AI"}
               </div>
-            ))}
-          </div>
+              <div className={`max-w-[80%] md:max-w-[72%] rounded-2xl px-5 py-4 text-base leading-relaxed ${msg.role === "user" ? `${t.userBubble} border rounded-tr-sm` : `${t.aiBubble} border rounded-tl-sm`}`}>
+                {msg.role === "ai" ? (
+                  <>
+                    {formatText(msg.text)}
+                    {msg.sources?.length > 0 && (
+                      <div className={`mt-4 pt-4 border-t ${dark ? "border-gray-700" : "border-gray-200"} flex flex-wrap gap-2`}>
+                        <span className={`text-xs ${t.muted} w-full mb-1 font-medium`}>SOURCES</span>
+                        {msg.sources.slice(0, 3).map((src, j) => (
+                          <a key={j} href={src} target="_blank" rel="noreferrer"
+                            className="text-xs text-pink-500 bg-pink-500/10 border border-pink-500/20 rounded-lg px-3 py-1.5 font-medium hover:bg-pink-500/20 transition-colors max-w-[200px] truncate block">
+                            🔗 {new URL(src).hostname}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : msg.text}
+              </div>
+            </div>
+          ))}
+
+          {loading && (
+            <div className="flex gap-3 items-start">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 shrink-0 flex items-center justify-center text-sm font-black text-white shadow-lg">AI</div>
+              <div className={`${t.aiBubble} border rounded-2xl rounded-tl-sm px-5 py-4`}>
+                <div className="flex gap-2 items-center">
+                  {[0,1,2].map(i => <div key={i} className="w-2.5 h-2.5 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
         </div>
 
-        {/* Main */}
-        <div className="main">
-
-          {/* Topbar */}
-          <div className="topbar">
-            <button className="hamburger" onClick={() => setSidebarOpen(true)}>☰</button>
-            <div className="topbar-indicator">
-              <div className={`status-dot ${pdfUploaded ? 'active' : 'inactive'}`} />
-              <span className={`topbar-text ${pdfUploaded ? 'active' : ''}`}>
-                {pdfUploaded ? `${pdfName}` : 'No PDF loaded'}
-              </span>
-            </div>
-            <div style={{ marginLeft:'auto', display:'flex', gap:'6px' }}>
-              {['⚡','🔍','✨'].map((e,i) => (
-                <div key={i} style={{
-                  width:28, height:28, borderRadius:8,
-                  background:'var(--surface2)', border:'1px solid var(--border)',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:12, cursor:'default', opacity: 0.5
-                }}>{e}</div>
-              ))}
-            </div>
+        {/* Input */}
+        <div className={`px-4 md:px-6 py-4 border-t ${t.inputArea} backdrop-blur-xl`}>
+          <div className={`flex gap-3 items-end ${t.input} border rounded-2xl px-4 py-3 transition-all focus-within:ring-2 ${mode === "web" ? "focus-within:ring-pink-500/30" : "focus-within:ring-violet-500/30"}`}>
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleTextareaChange}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() }}}
+              placeholder={mode === "web" ? "Search anything..." : pdfUploaded ? "Ask anything..." : "First upload a PDF..."}
+              disabled={isDisabled}
+              rows={1}
+              className={`flex-1 bg-transparent text-base outline-none resize-none leading-relaxed ${t.text} placeholder:${t.muted} max-h-32 disabled:cursor-not-allowed`}
+            />
+            <button onClick={sendMessage} disabled={loading || isDisabled || !input.trim()}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed bg-gradient-to-br text-white shadow-md ${mode === "web" ? "from-pink-500 to-violet-500" : "from-violet-500 to-pink-500"}`}>
+              {mode === "web" ? "🔍" : "➤"}
+            </button>
           </div>
-
-          {/* Messages */}
-          <div className="messages">
-            {messages.length === 0 && (
-              <div className="empty-state">
-                <div className="empty-icon">⚡</div>
-                <div>
-                  <div className="empty-title">PDF ChatBot</div>
-                  <div className="empty-sub" style={{ marginTop:8 }}>Upload a PDF → Ask anything</div>
-                </div>
-              </div>
-            )}
-
-            {messages.map((msg, i) => (
-              <div key={i} className={`msg-row ${msg.role === 'user' ? 'user' : ''}`}>
-                <div className={`avatar ${msg.role}`}>{msg.role === 'user' ? 'U' : 'AI'}</div>
-                <div className={`bubble ${msg.role}`}>
-                  {msg.role === 'ai' ? formatText(msg.text) : msg.text}
-                </div>
-              </div>
-            ))}
-
-            {loading && (
-              <div className="msg-row">
-                <div className="avatar ai">AI</div>
-                <div className="bubble ai">
-                  <div className="loading-dots">
-                    <div className="dot" />
-                    <div className="dot" />
-                    <div className="dot" />
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-
-          {/* Input */}
-          <div className="input-area">
-            <div className="input-box">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={handleTextareaChange}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-                placeholder={pdfUploaded ? "Ask Anything..." : "First upload a PDF..."}
-                disabled={!pdfUploaded}
-                rows={1}
-              />
-              <button className="send-btn" onClick={sendMessage} disabled={loading || !pdfUploaded || !input.trim()}>
-                ➤
-              </button>
-            </div>
-            <div className="input-hint">↵ send · ⇧↵ new line</div>
-          </div>
+          <p className={`text-center text-xs ${t.muted} mt-2`}>↵ send · ⇧↵ new line</p>
         </div>
       </div>
-    </>
+    </div>
   )
 }
